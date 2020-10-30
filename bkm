@@ -1,56 +1,155 @@
 #!/bin/sh
 
 #
-# bkm
+# bkm - bookmark manager
 #
 
+# shellcheck disable=2154
+
+log() {
+    #
+    # args
+    # 1: 0-1   - normal or bold
+    # 2: str   - message to display
+    #
+    # source: https://misc.flogisoft.com/bash/tip_colors_and_formatting
+    #
+    printf '\033[%sm%s\033[m\n' "$1" "$2"
+}
+
 die() {
-    printf '\033[1;31m%s\033[m\n' "$@"
+    log "1" "$1"
     exit 1
 }
 
 is_url() {
     printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." || {
-        die "Second arg must be a valid url."
+        die "$2"
     }
 }
 
-args() {
-    while getopts :c:u: opt; do case $opt in
-        \?)
-            printf 'bkm <args>\n\n'
-            printf -- '-c <category>\n'
-            printf -- '-u <url>\n'
-        ;;
-
-        :) printf 'Option -%s requires an argument\n' "$OPTARG" >&2 ;;
-        *) export "$opt=$OPTARG"
-    esac; done
+has_value() {
+    [ -z "$1" ] && {
+        die "Argument $2 is required."
+    }
 }
 
+already_exists() {
+    file="$bkmdir/$1"
+
+    if [ -f "$file" ]; then
+        while IFS='=' read -r n u; do
+            printf '%s: %s\n' "$n" "$u"
+        done < "$file"
+    else
+        :> "$file"
+    fi
+
+}
+
+bkm_add() {
+    has_value "$name" "-n <name>"
+
+    has_value "$url" "-u <url>"
+
+    is_url "$url" "Argument -u <url> arg must be a valid url."
+
+    already_exists "$category"
+
+    printf '%s=%s\n' "$name" "$url" >> "$bkmdir/$category" || {
+        die "Failed to write bookmark to $bkmdir/$category"
+    }
+
+    log "1" "Bookmark added:"
+    log "0" "    Category: $category"
+    log "0" "    Name: $name"
+    log "0" "    URL: $url"
+}
+
+bkm_edit() {
+    printf 'bkm_edit\n'
+}
+
+bkm_open() {
+    printf 'bkm_open\n'
+}
+
+bkm_list() {
+    printf 'bkm_list\n'
+}
+
+bkm_delete() {
+    printf 'bkm_delete\n'
+}
+
+help() {
+    log "1" "Usage: bkm [ACTION] [ARGS]"
+    log "1" "    Add bookmark"
+    log "0" "        add -c <category> -n <name> -u <url>"
+    log "1" "    Edit bookmark"
+    log "0" "        edit -c <category> -n <name>"
+    log "1" "    Open bookmark in ${BROWSER:-\$BROWSER}"
+    log "0" "        open -c <category> -n <name>"
+    log "1" "    List bookmarks in category"
+    log "0" "        list -c <category>"
+    log "1" "    List all bookmarks"
+    log "0" "        list"
+    log "1" "    Delete bookmark"
+    log "0" "        delete -c <category> -n <name>"
+    log "1" "    Delete category and all its bookmarks"
+    log "0" "        delete -c <category>"
+
+    exit
+}
+
+args() {
+    while getopts :c:n:u: opt;
+        do case $opt in
+            c) category=$OPTARG ;;
+            n) name=$OPTARG ;;
+            u) url=$OPTARG ;;
+            \?) help ;;
+            :) printf 'Option -%s requires an argument\n' "$OPTARG" >&2; exit 1 ;;
+            *) printf 'Option -%s does not exist\n' "$OPTARG" >&2; exit 1 ;;
+        esac;
+    done
+}
 
 main() {
-    # actions: add, edit, delete, open
-    #action="$1"
+    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
 
-    #shift
+    mkdir -p "${bkmdir:=$BKM_DIR/bkm}"
+
+    action="$1"
+
+    shift
 
     args "$@"
 
-    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
+    case $action in
+        add) add=1 ;;
+        edit) edit=1 ;;
+        open) open=1 ;;
+        list) list=1 ;;
+        delete) delete=1 ;;
+        *) help ;;
+    esac
 
-    # [ "$#" -lt 2 ] && die "Not enough args."
+    [ -z "$list" ] && [ -z "$category" ] && die "Arg -c <category> is required."
 
-    printf '%s\n' "$c"
-    printf '%s\n' "$u"
-
-    #category="$1"
-    #url="$2"
-
-    #set --
-
-    #is_url "$url"
-    #printf '%s\n' "$category"
+    if [ -n "$add" ]; then
+        bkm_add
+    elif [ -n "$edit" ]; then
+        bkm_edit
+    elif [ -n "$open" ]; then
+        bkm_open
+    elif [ -n "$list" ]; then
+        bkm_list
+    elif [ -n "$delete" ]; then
+        bkm_delete
+    else
+        help
+    fi
 }
 
 main "$@"
