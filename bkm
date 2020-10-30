@@ -1,0 +1,56 @@
+#!/bin/sh
+
+#
+# bkm
+#
+
+die() {
+    printf '\033[1;31m%s\033[m\n' "$@"
+    exit 1
+}
+
+is_url() {
+    printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." || {
+        die "Second arg must be a valid url."
+    }
+}
+
+args() {
+    while getopts :c:u: opt; do case $opt in
+        \?)
+            printf 'bkm <args>\n\n'
+            printf -- '-c <category>\n'
+            printf -- '-u <url>\n'
+        ;;
+
+        :) printf 'Option -%s requires an argument\n' "$OPTARG" >&2 ;;
+        *) export "$opt=$OPTARG"
+    esac; done
+}
+
+
+main() {
+    # actions: add, edit, delete, open
+    #action="$1"
+
+    #shift
+
+    args "$@"
+
+    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
+
+    # [ "$#" -lt 2 ] && die "Not enough args."
+
+    printf '%s\n' "$c"
+    printf '%s\n' "$u"
+
+    #category="$1"
+    #url="$2"
+
+    #set --
+
+    #is_url "$url"
+    #printf '%s\n' "$category"
+}
+
+main "$@"
