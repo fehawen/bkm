@@ -44,31 +44,35 @@ sanitize() {
 }
 
 read_input() {
-    old=$1
+    old_val=$1
 
-    read -r "new"
+    read -r "new_val"
 
-    if [ -n "$new" ] && [ "$new" != "$old" ]; then
-        new=$(sanitize "$new")
-        printf '%s\n' "$new"
+    if [ -n "$new_val" ] && [ "$new_val" != "$old_val" ]; then
+        new_val=$(sanitize "$new_val")
+        printf '%s\n' "$new_val"
     else
-        printf '%s\n' "$old"
+        printf '%s\n' "$old_val"
     fi
 
-    unset old
-    unset new
+    unset old_val
+    unset new_val
 }
 
-value_or_die() {
-    [ -n "$1" ] || {
-        die "Argument $2 is required."
+is_url() {
+    printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." && {
+        return 0
     }
+
+    return 1
 }
 
 url_or_die() {
-    printf '%s' "${1:-""}" | grep -q -e "http://" -e "https://" -e "www." || {
-        die "URL is required and must have valid format."
-    }
+    is_url "${1:-""}" || die "URL is required and must have valid format."
+}
+
+value_or_die() {
+    [ -n "$1" ] || die "Argument $2 is required."
 }
 
 file_or_die() {
@@ -85,35 +89,43 @@ list_tree() {
     done < "$1"
 }
 
-check_duplicate() {
+handle_duplicate() {
+    new_name="$1"
+    new_url="$2"
+    skip="${1:-"0"}"
+
     if [ -f "$current" ]; then
-        seen=0
-        xname=""
-        xurl=""
+        seen="0"
+        dup_name=""
+        dup_url=""
 
         while IFS=' ' read -r n u; do
 
-            [ "$name" = "$n" ] && {
-                seen=1
-                xname="$n"
-                xurl="$u"
+            [ "$new_name" = "$n" ] && {
+                seen="1"
+                dup_name="$n"
+                dup_url="$u"
             }
 
-            [ "$url" = "$u" ] && {
+            [ "$skip" = "0" ] && [ "$new_url" = "$u" ] && {
                 mesg "Duplicate URL found in category." "$category" "$n" "$u"
                 exit
             }
         done < "$current"
 
-        [ $seen -eq 1 ] && {
-            mesg "Duplicate name found in category." "$category" "$xname" "$xurl"
+        [ $seen = "1" ] && {
+            mesg "Duplicate name found in category." "$category" "$dup_name" "$dup_url"
 
             printf '\nEnter another name (or press Ctrl+C to abort): '
 
-            prev=$name
-            name=$(read_input "$prev")
+            name=$(read_input "$dup_name")
 
-            check_duplicate
+            [ "$skip" = "1" ] && [ "$name" = "$dup_name" ] && {
+                mesg "Bookmark unchanged." "$category" "$old_name" "$old_url"
+                exit
+            }
+
+            handle_duplicate "$name" "$new_url" "$skip"
         }
 
     else
@@ -126,7 +138,7 @@ add_bookmark() {
     value_or_die "$name" "name"
     url_or_die "$url"
 
-    check_duplicate
+    handle_duplicate "$name" "$url"
 
     printf '%s %s\n' "$name" "$url" >> "$current" || {
         die "Failed to write bookmark to file ${current##*/}."
@@ -136,7 +148,46 @@ add_bookmark() {
 }
 
 edit_bookmark() {
-    printf 'TODO\n'
+    value_or_die "$category" "category"
+    value_or_die "$name" "name"
+    file_or_die "$current"
+
+    # delete line by index N from file
+    # sed -i "Nd" file
+
+    # delete empty lines in file
+    # sed -i '/^$/d' file
+
+    old_name=""
+    old_url=""
+    index=""
+
+    while IFS=' ' read -r n u; do
+        i=$((i+1))
+
+        [ "$name" = "$n" ] && {
+            old_name="$n"
+            old_url="$u"
+            index="$i"
+        }
+
+        continue
+    done < "$current"
+
+    [ -z "$index" ] && die "Bookmark $old_name not found in category."
+
+    # printf '\nEdit name (or press Enter to leave unchanged): '
+    # new_name=$(read_input "$old_name")
+
+    # printf '\nEdit URL (or press Enter to leave unchanged): '
+    # new_url=$(read_input "$old_url")
+
+    # handle_duplicate "1"
+
+    # if [ "$new_name" != "$old_name" ] || [ "$new_url" != "$old_url" ]; then
+    # fi
+
+    # mesg "Bookmark edited." "$category" "$name" "$url"
 }
 
 open_bookmark() {
@@ -148,8 +199,12 @@ open_bookmark() {
 
     while IFS=' ' read -r n u; do
         [ "$name" = "$n" ] && {
-            command "$BROWSER" "$u" > /dev/null
-            exit
+            if [ -n "$u" ] && is_url "$u"; then
+                command "$BROWSER" "$u" > /dev/null
+                exit
+            else
+                die "Bookmark $name has an invalid or missing URL."
+            fi
         }
 
         continue
