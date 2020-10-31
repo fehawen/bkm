@@ -13,11 +13,35 @@ die() {
     exit 1
 }
 
-msg() {
-    printf '%s\n%s\n%s\n%s\n' "$1" \
-        "category: $2" \
-        "    name: $3" \
-        "     url: $4"
+nest() {
+    log "├─ $1" \
+        "│  $2"
+}
+
+mesg() {
+    log "$1" "$2"
+    nest "$3" "$4"
+}
+
+truncate() {
+    set +f
+
+    # shellcheck disable=2048,2086
+    set -f -- $*
+
+    printf '%s\n' "$*"
+}
+
+trim() {
+    printf '%s\n' "$1" | sed -e "s/ //g"
+}
+
+sanitize() {
+    str=$1
+    str=$(truncate "$str")
+    str=$(trim "$str")
+
+    printf '%s\n' "$str"
 }
 
 read_input() {
@@ -36,40 +60,33 @@ read_input() {
     unset new
 }
 
-is_url() {
-    printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." && {
-        return 0
+value_or_die() {
+    [ -n "$1" ] || {
+        die "Argument $2 is required."
     }
-
-    return 1
 }
 
-has_value() {
-    [ -z "$1" ] && die "Argument $2 is required"
+url_or_die() {
+    printf '%s' "${1:-""}" | grep -q -e "http://" -e "https://" -e "www." || {
+        die "URL is required and must have correct format."
+    }
 }
 
-truncate() {
-    set +f
-    # shellcheck disable=2048,2086
-    set -f -- $*
-
-    printf '%s\n' "$*"
+file_or_die() {
+    [ -f "$1" ] || die "Category ${1##*/} not found."
 }
 
-trim() {
-    printf '%s\n' "$1" | sed -e "s/ //g"
+treelog() {
+    file_or_die "$1"
+
+    log "${1##*/}"
+
+    while IFS=' ' read -r n u; do
+        nest "$n" "$u"
+    done < "$1"
 }
 
-sanitize() {
-    str=$1
-
-    str=$(truncate "$str")
-    str=$(trim "$str")
-
-    printf '%s\n' "$str"
-}
-
-handle_existing() {
+check_duplicate() {
     if [ -f "$current" ]; then
         seen=0
         xname=""
@@ -84,19 +101,20 @@ handle_existing() {
             }
 
             [ "$url" = "$u" ] && {
-                msg "URL ALREADY EXISTS IN CATEGORY" "$category" "$n" "$u"
+                mesg "Duplicate URL found in category." "$category" "$n" "$u"
                 exit
             }
         done < "$current"
 
         [ $seen -eq 1 ] && {
-            msg "NAME ALREADY EXISTS IN CATEGORY" "$category" "$xname" "$xurl"
+            mesg "Duplicate name found in category." "$category" "$xname" "$xurl"
 
-            printf '\nEnter new name to save (or press Ctrl+C to abort): '
+            printf '\nEnter another name (or press Ctrl+C to abort): '
 
             prev=$name
             name=$(read_input "$prev")
-            handle_existing
+
+            check_duplicate
         }
 
     else
@@ -105,18 +123,17 @@ handle_existing() {
 }
 
 add_bookmark() {
-    has_value "$name" "-n <name>"
-    has_value "$url" "-u <url>"
+    value_or_die "$category" "category"
+    value_or_die "$name" "name"
+    url_or_die "$url"
 
-    is_url "$url" || die "Argument -u <url> arg must be a valid url"
-
-    handle_existing
+    check_duplicate
 
     printf '%s %s\n' "$name" "$url" >> "$current" || {
-        die "Failed to write bookmark to $current"
+        die "Failed to write bookmark to file ${current##*/}."
     }
 
-    msg "BOOKMARK ADDED" "$category" "$name" "$url"
+    mesg "Bookmark saved." "$category" "$name" "$url"
 }
 
 edit_bookmark() {
@@ -124,18 +141,22 @@ edit_bookmark() {
 }
 
 open_bookmark() {
-    printf 'TODO\n'
-}
+    [ -z "$BROWSER" ] && die "BROWSER is not set."
 
-treelog() {
-    [ -f "$1" ] || die "Category ${1##*/} does not exist"
-
-    log "${1##*/}"
+    value_or_die "$category" "category"
+    value_or_die "$name" "name"
+    file_or_die "$current"
 
     while IFS=' ' read -r n u; do
-        log "├─ $n" \
-            "│  $u"
-    done < "$1"
+        [ "$name" = "$n" ] && {
+            command "$BROWSER" "$u" > /dev/null
+            exit
+        }
+
+        continue
+    done < "$current"
+
+    die "Bookmark $name not found in category."
 }
 
 list_bookmark() {
@@ -161,85 +182,60 @@ delete_bookmark() {
 }
 
 help() {
-
     log "bkm is a simple bookmark manager that uses plain text files to" \
         "store bookmarks under categories in a user-specified directory." \
         "The directory is defined by BKM_DIR in \$SHELL's startup file." "" \
-        "Usage: bkm [action] [args]" \
-        "Actions:" "" \
-        "add -c <category> -n <name> -u <url>" \
-        "    Add a new bookmark" "" \
-        "edit -c <category> -n <name>" \
-        "    Edit a bookmark" "" \
-        "open -c <category> -n <name>" \
-        "    Open bookmark in \$BROWSER" "" \
+        "Usage: bkm [options]..." "" \
+        "add category.name url" \
+        "    Add a new bookmark" \
+        "    Example: add \"archlinux.news\" \"https://www.archlinux.org/news/\"" "" \
+        "edit category.name" \
+        "    Edit a bookmark" \
+        "    Example: edit \"archlinux.news\"" "" \
+        "open category.name" \
+        "    Open bookmark in \$BROWSER" \
+        "    Example: open \"archlinux.news\"" "" \
         "list -c <category>" \
-        "    List all bookmarks in a category" "" \
+        "    List all bookmarks in a category" \
+        "    Example: list \"archlinux\"" "" \
         "list" \
-        "    List all bookmarks by category" "" \
-        "delete -c <category> -n <name>" \
-        "    Delete a bookmark in a category" "" \
-        "delete -c <category>" \
-        "    Delete category and all its bookmarks" ""
+        "    List all bookmarks in each category" \
+        "    Example: list" "" \
+        "delete category.name" \
+        "    Delete a bookmark in a category" \
+        "    Example: delete \"archlinux.news\"" "" \
+        "delete category" \
+        "    Delete category and all its bookmarks" \
+        "    Example: delete \"archlinux\"" ""
 
     exit
 }
 
-args() {
-    while getopts :c:n:u: opt;
-        do case $opt in
-            c) category=$(sanitize "$OPTARG") ;;
-            n) name=$(sanitize "$OPTARG") ;;
-            u) url=$(sanitize "$OPTARG") ;; # just to be safe as typos do occur.
-            \?) help ;;
-            :) printf 'Option -%s requires an argument\n' "$OPTARG" >&2; exit 1 ;;
-            *) printf 'Option -%s does not exist\n' "$OPTARG" >&2; exit 1 ;;
-        esac;
-    done
-}
-
 main() {
-    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set"
+    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
 
     mkdir -p "$BKM_DIR"
 
     action="$1"
 
-    [ "$#" -ge 1 ] && shift
+    key=$(sanitize "$2")
 
-    args "$@"
+    category="${key%%.*}"
 
-    case $action in
-        add) add=1 ;;
-        edit) edit=1 ;;
-        open) open=1 ;;
-        list) list=1 ;;
-        delete) delete=1 ;;
-        *) help ;;
-    esac
+    name="${key##*.}"
 
-    [ -z "$list" ] && [ -z "$category" ] && die "Arg -c <category> is required"
+    url=$(sanitize "$3")
 
     current="$BKM_DIR/$category"
 
-    #
-    # using a massive if statement is perhaps
-    # not the prettiest solution, but it'll do
-    # for now.
-    #
-    if [ -n "$add" ]; then
-        add_bookmark
-    elif [ -n "$edit" ]; then
-        edit_bookmark
-    elif [ -n "$open" ]; then
-        open_bookmark
-    elif [ -n "$list" ]; then
-        list_bookmark
-    elif [ -n "$delete" ]; then
-        delete_bookmark
-    else
-        help
-    fi
+    case $action in
+        add) add_bookmark ;;
+        edit) edit_bookmark ;;
+        open) open_bookmark ;;
+        list) list_bookmark ;;
+        delete) delete_bookmark ;;
+        *) help ;;
+    esac
 }
 
 main "$@"
