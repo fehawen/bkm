@@ -180,9 +180,19 @@ delete_bookmark() {
     printf 'TODO\n'
 }
 
-push_bookmark() {
-    printf 'TODO\n'
-}
+push_bookmark() (
+    command -v git > /dev/null || die "Install git to push bookmarks."
+
+    cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
+
+    command git rev-parse --is-inside-work-tree 1> /dev/null 2> /dev/null || {
+        die "\$BKM_DIR is not a git repository."
+    }
+
+    git add .
+    git commit -m "Update @ $(date '+%Y/%m/%d %H:%M')"
+    git push
+)
 
 help() {
     log "bkm is a simple bookmark manager that uses plain text files to" \
