@@ -25,7 +25,6 @@ mesg() {
 
 truncate() {
     set +f
-
     # shellcheck disable=2048,2086
     set -f -- $*
 
@@ -68,7 +67,7 @@ value_or_die() {
 
 url_or_die() {
     printf '%s' "${1:-""}" | grep -q -e "http://" -e "https://" -e "www." || {
-        die "URL is required and must have correct format."
+        die "URL is required and must have valid format."
     }
 }
 
@@ -76,7 +75,7 @@ file_or_die() {
     [ -f "$1" ] || die "Category ${1##*/} not found."
 }
 
-treelog() {
+list_tree() {
     file_or_die "$1"
 
     log "${1##*/}"
@@ -161,10 +160,10 @@ open_bookmark() {
 
 list_bookmark() {
     if [ -n "$category" ]; then
-        treelog "$BKM_DIR/$category"
+        list_tree "$bookmark_dir/$category"
     else
         set +f
-        set -f -- "$BKM_DIR/"*
+        set -f -- "$bookmark_dir/"*
 
         for c in "$@"; do
             [ -f "$c" ] || {
@@ -172,12 +171,16 @@ list_bookmark() {
                 continue
             }
 
-            treelog "$c"
+            list_tree "$c"
         done
     fi
 }
 
 delete_bookmark() {
+    printf 'TODO\n'
+}
+
+push_bookmark() {
     printf 'TODO\n'
 }
 
@@ -188,45 +191,41 @@ help() {
         "Usage: bkm [options]..." "" \
         "add category.name url" \
         "    Add a new bookmark" \
-        "    Example: add \"archlinux.news\" \"https://www.archlinux.org/news/\"" "" \
+        "    EXAMPLE: add \"archlinux.news\" \"https://www.archlinux.org/news/\"" "" \
         "edit category.name" \
         "    Edit a bookmark" \
-        "    Example: edit \"archlinux.news\"" "" \
+        "    EXAMPLE: edit \"archlinux.news\"" "" \
         "open category.name" \
         "    Open bookmark in \$BROWSER" \
-        "    Example: open \"archlinux.news\"" "" \
+        "    EXAMPLE: open \"archlinux.news\"" "" \
         "list -c <category>" \
         "    List all bookmarks in a category" \
-        "    Example: list \"archlinux\"" "" \
+        "    EXAMPLE: list \"archlinux\"" "" \
         "list" \
-        "    List all bookmarks in each category" \
-        "    Example: list" "" \
+        "    List all bookmarks in each category" "" \
         "delete category.name" \
         "    Delete a bookmark in a category" \
-        "    Example: delete \"archlinux.news\"" "" \
+        "    EXAMPLE: delete \"archlinux.news\"" "" \
         "delete category" \
         "    Delete category and all its bookmarks" \
-        "    Example: delete \"archlinux\"" ""
-
+        "    EXAMPLE: delete \"archlinux\"" "" \
+        "push" \
+        "    Stage, commit and push bookmarks to remote git repository" \
+        "    NOTE: This presumes that \$BKM_DIR is a git repository." ""
     exit
 }
 
 main() {
     [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
 
-    mkdir -p "$BKM_DIR"
+    bookmark_dir="${BKM_DIR%%/}/bkm"
+    mkdir -p "$bookmark_dir"
 
     action="$1"
-
-    key=$(sanitize "$2")
-
-    category="${key%%.*}"
-
-    name="${key##*.}"
-
+    category=$(sanitize "${2%%.*}")
+    name=$(sanitize "${2##*.}")
     url=$(sanitize "$3")
-
-    current="$BKM_DIR/$category"
+    current="$bookmark_dir/$category"
 
     case $action in
         add) add_bookmark ;;
@@ -234,6 +233,7 @@ main() {
         open) open_bookmark ;;
         list) list_bookmark ;;
         delete) delete_bookmark ;;
+        push) push_bookmark ;;
         *) help ;;
     esac
 }
