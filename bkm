@@ -4,100 +4,156 @@
 # bkm - bookmark manager
 #
 
-# shellcheck disable=2154
+# All is well and safe
+# shellcheck disable=2154,2048,2086
 
 log() {
-    #
-    # args
-    # 1: 0-1   - normal or bold
-    # 2: str   - message to display
-    #
-    # source: https://misc.flogisoft.com/bash/tip_colors_and_formatting
-    #
-    printf '\033[%sm%s\033[m\n' "$1" "$2"
+    printf '%s\n' "$@"
 }
 
 die() {
-    log "1" "$1"
+    log "$1"
     exit 1
 }
 
 is_url() {
-    printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." || {
-        die "$2"
+    printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." && {
+        return 0
     }
+
+    return 1
 }
 
 has_value() {
-    [ -z "$1" ] && {
-        die "Argument $2 is required."
-    }
+    [ -z "$1" ] && die "Argument $2 is required"
 }
 
-already_exists() {
-    file="$bkmdir/$1"
+truncate() {
+    set -f
 
-    if [ -f "$file" ]; then
-        while IFS='=' read -r n u; do
-            printf '%s: %s\n' "$n" "$u"
-        done < "$file"
+    set -- $*
+
+    printf '%s\n' "$*"
+
+    set +f
+}
+
+trim() {
+    printf '%s\n' "$1" | sed -e "s/ //g"
+}
+
+replace() {
+    printf '%s\n' "$1" | sed -e "s/ /_/g"
+}
+
+sanitize() {
+    str=$1
+    str=$(truncate "$str")
+
+    if is_url "$str"; then
+        str=$(trim "$str")
     else
-        :> "$file"
+        str=$(replace "$str")
+    fi
+
+    printf '%s\n' "$str"
+}
+
+handle_existing() {
+    if [ -f "$current" ]; then
+        seen=0
+
+        while IFS='=' read -r n u; do
+            [ "$name" = "$n" ] && seen=1
+
+            [ "$url" = "$u" ] && {
+                log "A bookmark with this URL already exists in the category" \
+                    "Category: $category" \
+                    "Name: $name" \
+                    "URL: $url"
+
+                exit
+            }
+        done < "$current"
+
+        [ "$seen" -eq 1 ] && {
+            log "A bookmark with this name already exists in the category" \
+                "Category: $category" \
+                "Name: $name" \
+                "URL: $url"
+
+            printf '\nEnter new name to save (or press Ctrl+C to abort): '
+
+            read -r "new"
+
+            [ -n "$new" ] && {
+                name=$(sanitize "$new")
+                handle_existing
+                unset new
+            }
+        }
+
+    else
+        :> "$current"
     fi
 
 }
 
 bkm_add() {
     has_value "$name" "-n <name>"
-
     has_value "$url" "-u <url>"
 
-    is_url "$url" "Argument -u <url> arg must be a valid url."
+    is_url "$url" || die "Argument -u <url> arg must be a valid url"
 
-    already_exists "$category"
+    handle_existing
 
-    printf '%s=%s\n' "$name" "$url" >> "$bkmdir/$category" || {
-        die "Failed to write bookmark to $bkmdir/$category"
+    printf '%s %s\n' "$name" "$url" >> "$current" || {
+        die "Failed to write bookmark to $current"
     }
 
-    log "1" "Bookmark added:"
-    log "0" "    Category: $category"
-    log "0" "    Name: $name"
-    log "0" "    URL: $url"
+    log "Bookmark added" \
+        "Category: $category" \
+        "Name: $name" \
+        "URL: $url"
 }
 
 bkm_edit() {
-    printf 'bkm_edit\n'
+    printf 'TODO\n'
 }
 
 bkm_open() {
-    printf 'bkm_open\n'
+    printf 'TODO\n'
 }
 
 bkm_list() {
-    printf 'bkm_list\n'
+    printf 'TODO\n'
 }
 
 bkm_delete() {
-    printf 'bkm_delete\n'
+    printf 'TODO\n'
 }
 
 help() {
-    log "1" "Usage: bkm [ACTION] [ARGS]"
-    log "1" "    Add bookmark"
-    log "0" "        add -c <category> -n <name> -u <url>"
-    log "1" "    Edit bookmark"
-    log "0" "        edit -c <category> -n <name>"
-    log "1" "    Open bookmark in ${BROWSER:-\$BROWSER}"
-    log "0" "        open -c <category> -n <name>"
-    log "1" "    List bookmarks in category"
-    log "0" "        list -c <category>"
-    log "1" "    List all bookmarks"
-    log "0" "        list"
-    log "1" "    Delete bookmark"
-    log "0" "        delete -c <category> -n <name>"
-    log "1" "    Delete category and all its bookmarks"
-    log "0" "        delete -c <category>"
+
+    log "bkm is a simple bookmark manager that uses plain text files to" \
+        "store bookmarks under categories in a user-specified directory." \
+        "The directory is defined by BKM_DIR in \$SHELL's startup file." "" \
+        "Usage: bkm [action] [args]" \
+        "Actions:" "" \
+        "add -c <category> -n <name> -u <url>" \
+        "    Add a new bookmark" "" \
+        "edit -c <category> -n <name>" \
+        "    Edit a bookmark" "" \
+        "open -c <category> -n <name>" \
+        "    Open bookmark in \$BROWSER" "" \
+        "list -c <category>" \
+        "    List all bookmarks in a category" "" \
+        "list" \
+        "    List all bookmarks by category" "" \
+        "delete -c <category> -n <name>" \
+        "    Delete a bookmark in a category" "" \
+        "delete -c <category>" \
+        "    Delete category and all its bookmarks" ""
 
     exit
 }
@@ -105,9 +161,9 @@ help() {
 args() {
     while getopts :c:n:u: opt;
         do case $opt in
-            c) category=$OPTARG ;;
-            n) name=$OPTARG ;;
-            u) url=$OPTARG ;;
+            c) category=$(sanitize "$OPTARG") ;;
+            n) name=$(sanitize "$OPTARG") ;;
+            u) url=$(sanitize "$OPTARG") ;; # just to be safe as typos do occur.
             \?) help ;;
             :) printf 'Option -%s requires an argument\n' "$OPTARG" >&2; exit 1 ;;
             *) printf 'Option -%s does not exist\n' "$OPTARG" >&2; exit 1 ;;
@@ -116,9 +172,9 @@ args() {
 }
 
 main() {
-    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
+    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set"
 
-    mkdir -p "${bkmdir:=$BKM_DIR/bkm}"
+    mkdir -p "$BKM_DIR"
 
     action="$1"
 
@@ -135,8 +191,15 @@ main() {
         *) help ;;
     esac
 
-    [ -z "$list" ] && [ -z "$category" ] && die "Arg -c <category> is required."
+    [ -z "$list" ] && [ -z "$category" ] && die "Arg -c <category> is required"
 
+    current="$BKM_DIR/$category"
+
+    #
+    # using a massive if statement is perhaps
+    # not the prettiest solution, but it'll do
+    # for now.
+    #
     if [ -n "$add" ]; then
         bkm_add
     elif [ -n "$edit" ]; then
