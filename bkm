@@ -1,11 +1,8 @@
-#!/bin/sh
+#!/bin/sh -f
 
 #
 # bkm - bookmark manager
 #
-
-# All is well and safe
-# shellcheck disable=2154,2048,2086
 
 log() {
     printf '%s\n' "$@"
@@ -14,6 +11,29 @@ log() {
 die() {
     log "$1"
     exit 1
+}
+
+msg() {
+    printf '%s\n%s\n%s\n%s\n' "$1" \
+        "category: $2" \
+        "    name: $3" \
+        "     url: $4"
+}
+
+read_input() {
+    old=$1
+
+    read -r "new"
+
+    if [ -n "$new" ] && [ "$new" != "$old" ]; then
+        new=$(sanitize "$new")
+        printf '%s\n' "$new"
+    else
+        printf '%s\n' "$old"
+    fi
+
+    unset old
+    unset new
 }
 
 is_url() {
@@ -29,32 +49,22 @@ has_value() {
 }
 
 truncate() {
-    set -f
-
-    set -- $*
+    set +f
+    # shellcheck disable=2048,2086
+    set -f -- $*
 
     printf '%s\n' "$*"
-
-    set +f
 }
 
 trim() {
     printf '%s\n' "$1" | sed -e "s/ //g"
 }
 
-replace() {
-    printf '%s\n' "$1" | sed -e "s/ /_/g"
-}
-
 sanitize() {
     str=$1
-    str=$(truncate "$str")
 
-    if is_url "$str"; then
-        str=$(trim "$str")
-    else
-        str=$(replace "$str")
-    fi
+    str=$(truncate "$str")
+    str=$(trim "$str")
 
     printf '%s\n' "$str"
 }
@@ -62,44 +72,39 @@ sanitize() {
 handle_existing() {
     if [ -f "$current" ]; then
         seen=0
+        xname=""
+        xurl=""
 
-        while IFS='=' read -r n u; do
-            [ "$name" = "$n" ] && seen=1
+        while IFS=' ' read -r n u; do
+
+            [ "$name" = "$n" ] && {
+                seen=1
+                xname="$n"
+                xurl="$u"
+            }
 
             [ "$url" = "$u" ] && {
-                log "A bookmark with this URL already exists in the category" \
-                    "Category: $category" \
-                    "Name: $name" \
-                    "URL: $url"
-
+                msg "URL ALREADY EXISTS IN CATEGORY" "$category" "$n" "$u"
                 exit
             }
         done < "$current"
 
-        [ "$seen" -eq 1 ] && {
-            log "A bookmark with this name already exists in the category" \
-                "Category: $category" \
-                "Name: $name" \
-                "URL: $url"
+        [ $seen -eq 1 ] && {
+            msg "NAME ALREADY EXISTS IN CATEGORY" "$category" "$xname" "$xurl"
 
             printf '\nEnter new name to save (or press Ctrl+C to abort): '
 
-            read -r "new"
-
-            [ -n "$new" ] && {
-                name=$(sanitize "$new")
-                handle_existing
-                unset new
-            }
+            prev=$name
+            name=$(read_input "$prev")
+            handle_existing
         }
 
     else
         :> "$current"
     fi
-
 }
 
-bkm_add() {
+add_bookmark() {
     has_value "$name" "-n <name>"
     has_value "$url" "-u <url>"
 
@@ -111,25 +116,47 @@ bkm_add() {
         die "Failed to write bookmark to $current"
     }
 
-    log "Bookmark added" \
-        "Category: $category" \
-        "Name: $name" \
-        "URL: $url"
+    msg "BOOKMARK ADDED" "$category" "$name" "$url"
 }
 
-bkm_edit() {
+edit_bookmark() {
     printf 'TODO\n'
 }
 
-bkm_open() {
+open_bookmark() {
     printf 'TODO\n'
 }
 
-bkm_list() {
-    printf 'TODO\n'
+treelog() {
+    [ -f "$1" ] || die "Category ${1##*/} does not exist"
+
+    log "${1##*/}"
+
+    while IFS=' ' read -r n u; do
+        log "├─ $n" \
+            "│  $u"
+    done < "$1"
 }
 
-bkm_delete() {
+list_bookmark() {
+    if [ -n "$category" ]; then
+        treelog "$BKM_DIR/$category"
+    else
+        set +f
+        set -f -- "$BKM_DIR/"*
+
+        for c in "$@"; do
+            [ -f "$c" ] || {
+                log "No bookmarks found"
+                continue
+            }
+
+            treelog "$c"
+        done
+    fi
+}
+
+delete_bookmark() {
     printf 'TODO\n'
 }
 
@@ -178,7 +205,7 @@ main() {
 
     action="$1"
 
-    shift
+    [ "$#" -ge 1 ] && shift
 
     args "$@"
 
@@ -201,15 +228,15 @@ main() {
     # for now.
     #
     if [ -n "$add" ]; then
-        bkm_add
+        add_bookmark
     elif [ -n "$edit" ]; then
-        bkm_edit
+        edit_bookmark
     elif [ -n "$open" ]; then
-        bkm_open
+        open_bookmark
     elif [ -n "$list" ]; then
-        bkm_list
+        list_bookmark
     elif [ -n "$delete" ]; then
-        bkm_delete
+        delete_bookmark
     else
         help
     fi
