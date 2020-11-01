@@ -79,6 +79,32 @@ file_or_die() {
     [ -f "$1" ] || die "Category ${1##*/} not found."
 }
 
+git_or_die() {
+    command -v git > /dev/null || die "This command requires git to be installed."
+}
+
+repo_or_die() {
+    command git rev-parse --is-inside-work-tree 1> /dev/null 2> /dev/null || {
+        die "\$BKM_DIR is not a git repository."
+    }
+}
+
+remote_or_die() {
+    command git remote -v > /dev/null && {
+        die "\$BKM_DIR remote repository not set."
+    }
+}
+
+is_dirty() {
+    git status --short > /dev/null && return 0
+
+    return 1
+}
+
+dirty_or_die() {
+    is_dirty || die "\$BKM_DIR git repository is clean."
+}
+
 list_tree() {
     file_or_die "$1"
 
@@ -236,18 +262,43 @@ delete_bookmark() {
 }
 
 push_bookmark() (
-    command -v git > /dev/null || die "Install git to push bookmarks."
+    git_or_die
 
     cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
 
-    command git rev-parse --is-inside-work-tree 1> /dev/null 2> /dev/null || {
-        die "\$BKM_DIR is not a git repository."
-    }
+    repo_or_die
+    remote_or_die
+    dirty_or_die
 
     git add .
     git commit -m "Update @ $(date '+%Y/%m/%d %H:%M')"
     git push
 )
+
+pull_bookmark() {
+    git_or_die
+
+    cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
+
+    repo_or_die
+    remote_or_die
+
+    is_dirty && {
+        stashed=1
+
+        git stash
+    }
+
+    git pull
+
+    [ -n "$stashed" ] && {
+        git stash apply
+
+        push_bookmark
+
+        unset stashed
+    }
+}
 
 help() {
     log "bkm is a simple bookmark manager that uses plain text files to" \
@@ -255,33 +306,36 @@ help() {
         "The directory is defined by BKM_DIR in \$SHELL's startup file." "" \
         "Usage: bkm [options]..." "" \
         "add category.name url" \
-        "    Add a new bookmark" \
+        "    Add bookmark" \
         "    EXAMPLE: add \"archlinux.news\" \"https://www.archlinux.org/news/\"" "" \
         "edit category.name" \
-        "    Edit a bookmark" \
+        "    Edit bookmark" \
         "    EXAMPLE: edit \"archlinux.news\"" "" \
         "open category.name" \
         "    Open bookmark in \$BROWSER" \
         "    EXAMPLE: open \"archlinux.news\"" "" \
         "list -c <category>" \
-        "    List all bookmarks in a category" \
+        "    List bookmarks in category" \
         "    EXAMPLE: list \"archlinux\"" "" \
         "list" \
-        "    List all bookmarks in each category" "" \
+        "    List all bookmarks" "" \
         "delete category.name" \
-        "    Delete a bookmark in a category" \
+        "    Delete bookmark from category" \
         "    EXAMPLE: delete \"archlinux.news\"" "" \
         "delete category" \
-        "    Delete category and all its bookmarks" \
+        "    Delete entire category" \
         "    EXAMPLE: delete \"archlinux\"" "" \
         "push" \
-        "    Stage, commit and push bookmarks to remote git repository" \
-        "    NOTE: This presumes that \$BKM_DIR is a git repository." ""
+        "    Invokes git add, commit and push" \
+        "    NOTE: Presumes that \$BKM_DIR is a git repository." "" \
+        "pull" \
+        "    Invokes git pull" \
+        "    NOTE: Presumes that \$BKM_DIR is a git repository." ""
     exit
 }
 
 main() {
-    [ -z "$BKM_DIR" ] && die "BKM_DIR is not set."
+    [ -z "$BKM_DIR" ] && die "\$BKM_DIR is not set."
 
     bookmark_dir="${BKM_DIR%%/}/bkm"
     mkdir -p "$bookmark_dir"
@@ -299,6 +353,7 @@ main() {
         list) list_bookmark ;;
         delete) delete_bookmark ;;
         push) push_bookmark ;;
+        pull) pull_bookmark ;;
         *) help ;;
     esac
 }
