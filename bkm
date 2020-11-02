@@ -14,8 +14,8 @@ die() {
 }
 
 nest() {
-    log "├─ $1" \
-        "│  $2"
+    log "  ├─ $1" \
+        "  │  $2"
 }
 
 msg() {
@@ -308,7 +308,7 @@ open_bookmark() {
     while IFS=' ' read -r n u; do
         [ "$name" = "$n" ] && {
             if [ -n "$u" ] && is_url "$u"; then
-                command "$BROWSER" "$u" > /dev/null
+                command "$BROWSER" "$u" 1> /dev/null 2> /dev/null &
                 exit
             else
                 die "Bookmark $name has an invalid or missing URL."
@@ -350,11 +350,14 @@ delete_bookmark() {
         answer=$(read_input "")
 
         case $answer in
-            'y'*|'Y'*) rm -f "$current" ;;
+            'y'*|'Y'*) ;;
             *) die "Quitting." ;;
         esac
 
         unset answer
+
+        rm -f "$current"
+        log "Category deleted."
     fi
 }
 
