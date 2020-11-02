@@ -201,7 +201,7 @@ remove_empty_categories() {
     set -f -- "$bookmark_dir/"*
 
     for file in "$@"; do
-        [ -s "$file" ] || rm "$file"
+        [ -s "$file" ] || rm -f "$file"
     done
 }
 
@@ -350,7 +350,7 @@ delete_bookmark() {
         answer=$(read_input "")
 
         case $answer in
-            'y'*|'Y'*) rm "$current" ;;
+            'y'*|'Y'*) rm -f "$current" ;;
             *) die "Quitting." ;;
         esac
 
