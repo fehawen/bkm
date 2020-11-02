@@ -18,7 +18,7 @@ nest() {
         "│  $2"
 }
 
-mesg() {
+msg() {
     log "$1" "$2"
     nest "$3" "$4"
 }
@@ -44,23 +44,23 @@ sanitize() {
 }
 
 read_input() {
-    old_val=$1
+    old=$1
 
-    read -r "new_val"
+    read -r "new"
 
-    if [ -n "$new_val" ] && [ "$new_val" != "$old_val" ]; then
-        new_val=$(sanitize "$new_val")
-        printf '%s\n' "$new_val"
+    if [ -n "$new" ] && [ "$new" != "$old" ]; then
+        new=$(sanitize "$new")
+        printf '%s\n' "$new"
     else
-        printf '%s\n' "$old_val"
+        printf '%s\n' "$old"
     fi
 
-    unset old_val
-    unset new_val
+    unset old
+    unset new
 }
 
 is_url() {
-    printf '%s' "$1" | grep -q -e "http://" -e "https://" -e "www." && {
+    printf '%s\n' "$1" | grep -q -e "http://" -e "https://" -e "www." && {
         return 0
     }
 
@@ -115,48 +115,136 @@ list_tree() {
     done < "$1"
 }
 
-handle_duplicate() {
-    new_name="$1"
-    new_url="$2"
-    skip="${1:-"0"}"
+value_exists() {
+    match_against="$1"
+    skip_index="$2"
 
-    if [ -f "$current" ]; then
-        seen="0"
-        dup_name=""
-        dup_url=""
+    seen=0
 
-        while IFS=' ' read -r n u; do
+    while IFS=' ' read -r n u; do
+        i=$((i+1))
 
-            [ "$new_name" = "$n" ] && {
-                seen="1"
-                dup_name="$n"
-                dup_url="$u"
-            }
+        [ "$match_against" = "name" ] && \
+        [ "$name" = "$n" ] && \
+        [ "$skip_index" != "$i" ] && {
+            seen=1
+            existing_name="$n"
+            existing_url="$u"
 
-            [ "$skip" = "0" ] && [ "$new_url" = "$u" ] && {
-                mesg "Duplicate URL found in category." "$category" "$n" "$u"
-                exit
-            }
-        done < "$current"
-
-        [ $seen = "1" ] && {
-            mesg "Duplicate name found in category." "$category" "$dup_name" "$dup_url"
-
-            printf '\nEnter another name (or press Ctrl+C to abort): '
-
-            name=$(read_input "$dup_name")
-
-            [ "$skip" = "1" ] && [ "$name" = "$dup_name" ] && {
-                mesg "Bookmark unchanged." "$category" "$old_name" "$old_url"
-                exit
-            }
-
-            handle_duplicate "$name" "$new_url" "$skip"
+            break
         }
 
-    else
+        [ "$match_against" = "url" ] && \
+        [ "$url" = "$u" ] && \
+        [ "$skip_index" != "$i" ] && {
+            seen=1
+            existing_name="$n"
+            existing_url="$u"
+
+            break
+        }
+
+        [ $seen -eq 1 ]
+    done < "$current"
+
+    unset i
+
+    [ $seen -eq 1 ] && return 0
+
+    return 1
+}
+
+resolve_duplicates() {
+    [ -f "$current" ] || {
         :> "$current"
-    fi
+        return
+    }
+
+    value_exists "name" "$index" && {
+        msg "Duplicate name found in category:" \
+            "$category" "$existing_name" "$existing_url"
+
+        printf '\nEnter another name (or type Ctrl+C to abort): '
+        new_name=$(read_input "$existing_name")
+
+        [ -n "$new_name" ] && name="$new_name"
+
+        resolve_duplicates
+    }
+
+    value_exists "url" "$index" && {
+        msg "Duplicate URL found in category:" \
+            "$category" "$existing_name" "$existing_url"
+
+        printf '\nContinue anyway? [y/n]: '
+        answer=$(read_input "")
+
+        case $answer in
+            'y'*|'Y'*) ;;
+            *) die "Quitting." ;;
+        esac
+
+        unset answer
+    }
+}
+
+remove_line_by_index() {
+    sed -i "${1}d" "$current"
+}
+
+remove_empty_lines() {
+    sed -i "/^$/d" "$current"
+}
+
+remove_empty_categories() {
+    set +f
+    set -f -- "$bookmark_dir/"*
+
+    for file in "$@"; do
+        [ -s "$file" ] || rm "$file"
+    done
+}
+
+delete_entry() {
+    while IFS=' ' read -r n u; do
+        i=$((i+1))
+
+        [ "$name" = "$n" ] && {
+            url="$u"
+            index="$i"
+        }
+
+        continue
+    done < "$current"
+
+    unset i
+
+    [ -z "$index" ] && die "Bookmark $name not found in category $category."
+
+    msg "Found bookmark:" \
+        "$category" "$name" "$url"
+
+    printf '\nDelete it? [y/n]: '
+    answer=$(read_input "")
+
+    case $answer in
+        'y'*|'Y'*) ;;
+        *) die "Quitting." ;;
+    esac
+
+    unset answer
+
+    remove_line_by_index "$index"
+    remove_empty_lines
+    remove_empty_categories
+
+    log "Bookmark deleted."
+}
+
+write_to_file() {
+    printf '%s %s\n' "$name" "$url" >> "$current" || {
+        die "Failed to write bookmark to file ${current##*/}."
+    }
 }
 
 add_bookmark() {
@@ -164,13 +252,12 @@ add_bookmark() {
     value_or_die "$name" "name"
     url_or_die "$url"
 
-    handle_duplicate "$name" "$url"
+    resolve_duplicates
 
-    printf '%s %s\n' "$name" "$url" >> "$current" || {
-        die "Failed to write bookmark to file ${current##*/}."
-    }
+    write_to_file
 
-    mesg "Bookmark saved." "$category" "$name" "$url"
+    msg "Bookmark saved:" \
+        "$category" "$name" "$url"
 }
 
 edit_bookmark() {
@@ -178,42 +265,37 @@ edit_bookmark() {
     value_or_die "$name" "name"
     file_or_die "$current"
 
-    # delete line by index N from file
-    # sed -i "Nd" file
-
-    # delete empty lines in file
-    # sed -i '/^$/d' file
-
-    old_name=""
-    old_url=""
-    index=""
-
     while IFS=' ' read -r n u; do
         i=$((i+1))
 
         [ "$name" = "$n" ] && {
-            old_name="$n"
-            old_url="$u"
+            url="$u"
             index="$i"
         }
 
         continue
     done < "$current"
 
-    [ -z "$index" ] && die "Bookmark $old_name not found in category."
+    unset i
 
-    # printf '\nEdit name (or press Enter to leave unchanged): '
-    # new_name=$(read_input "$old_name")
+    [ -z "$index" ] && die "Bookmark $name not found in category $category."
 
-    # printf '\nEdit URL (or press Enter to leave unchanged): '
-    # new_url=$(read_input "$old_url")
+    msg "Editing bookmark:" \
+        "$category" "$name" "$url"
 
-    # handle_duplicate "1"
+    printf '\nEdit name (or press Enter to leave unchanged): '
+    name=$(read_input "$name")
 
-    # if [ "$new_name" != "$old_name" ] || [ "$new_url" != "$old_url" ]; then
-    # fi
+    printf '\nEdit URL (or press Enter to leave unchanged): '
+    url=$(read_input "$url")
 
-    # mesg "Bookmark edited." "$category" "$name" "$url"
+    resolve_duplicates
+
+    remove_line_by_index "$index"
+    remove_empty_lines
+    write_to_file
+
+    msg "Bookmark saved:" "$category" "$name" "$url"
 }
 
 open_bookmark() {
@@ -258,7 +340,22 @@ list_bookmark() {
 }
 
 delete_bookmark() {
-    printf 'TODO\n'
+    value_or_die "$category" "category"
+    file_or_die "$current"
+
+    if [ -n "$name" ]; then
+        delete_entry
+    else
+        printf 'Delete category %s? [y/n]: ' "$category"
+        answer=$(read_input "")
+
+        case $answer in
+            'y'*|'Y'*) rm "$current" ;;
+            *) die "Quitting." ;;
+        esac
+
+        unset answer
+    fi
 }
 
 push_bookmark() (
@@ -340,11 +437,20 @@ main() {
     bookmark_dir="${BKM_DIR%%/}/bkm"
     mkdir -p "$bookmark_dir"
 
+    dotted="$2"
+    printf '%s\n' "$dotted" | grep -q -e "\." || {
+        dotted="$dotted."
+    }
+
     action="$1"
-    category=$(sanitize "${2%%.*}")
-    name=$(sanitize "${2##*.}")
+    category=$(sanitize "${dotted%%.*}")
+    name=$(sanitize "${dotted##*.}")
     url=$(sanitize "$3")
     current="$bookmark_dir/$category"
+    index=""
+
+    existing_name=""
+    existing_url=""
 
     case $action in
         add) add_bookmark ;;
