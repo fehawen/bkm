@@ -398,7 +398,7 @@ pull_bookmark() {
 }
 
 help() {
-    log "bkm is a simple bookmark manager that uses plain text files to" \
+    log "bkm is a simple CLI bookmark manager that uses plain text files to" \
         "store bookmarks under categories in a user-specified directory." \
         "The directory is defined by BKM_DIR in \$SHELL's startup file." "" \
         "Usage: bkm [options]..." "" \
