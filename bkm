@@ -413,26 +413,28 @@ help() {
         "store bookmarks under categories in a user-specified directory." \
         "The directory is defined by BKM_DIR in \$SHELL's startup file." "" \
         "Usage: bkm [options]..." "" \
-        "add category.name url" \
+        "add <category>.<name> <url>" \
         "    Add bookmark" \
-        "    EXAMPLE: add \"archlinux.news\" \"https://www.archlinux.org/news/\"" "" \
-        "edit category.name" \
+        "    EXAMPLE: add archlinux.news https://www.archlinux.org/news/" "" \
+        "edit <category>.<name>" \
         "    Edit bookmark" \
-        "    EXAMPLE: edit \"archlinux.news\"" "" \
-        "open category.name" \
+        "    EXAMPLE: edit archlinux.news" "" \
+        "open <category>.<name>" \
         "    Open bookmark in \$BROWSER" \
-        "    EXAMPLE: open \"archlinux.news\"" "" \
-        "list -c <category>" \
-        "    List bookmarks in category" \
-        "    EXAMPLE: list \"archlinux\"" "" \
+        "    EXAMPLE: open archlinux.news" "" \
         "list" \
         "    List all bookmarks" "" \
-        "delete category.name" \
+        "list <category>" \
+        "    List bookmarks in category" \
+        "    EXAMPLE: list archlinux" "" \
+        "list categories" \
+        "    List categories only" "" \
+        "delete <category>.<name>" \
         "    Delete bookmark from category" \
-        "    EXAMPLE: delete \"archlinux.news\"" "" \
-        "delete category" \
+        "    EXAMPLE: delete archlinux.news" "" \
+        "delete <category>" \
         "    Delete entire category" \
-        "    EXAMPLE: delete \"archlinux\"" "" \
+        "    EXAMPLE: delete archlinux" "" \
         "push" \
         "    Invokes git add, commit and push" \
         "    NOTE: Presumes that \$BKM_DIR is a git repository." "" \
