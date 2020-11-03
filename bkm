@@ -95,9 +95,11 @@ remote_or_die() {
 }
 
 is_dirty() {
-    git status --short > /dev/null || return 0
-
-    return 1
+    if [ "$(command git status --short)" = "" ]; then
+        return 1
+    else
+        return 0
+    fi
 }
 
 dirty_or_die() {
@@ -171,10 +173,10 @@ resolve_duplicates() {
         resolve_duplicates
 
         #
-        # If we don't return, the checks for url
-        # duplicates will run twice since the function
-        # did not get to finish before it invoked itself
-        # again in the line above.
+        # If we don't return, the url-duplicate check
+        # will run twice since the function did not get
+        # to finish before it invoked itself again in
+        # the line above.
         #
         return
     }
@@ -377,7 +379,7 @@ bkm_delete() {
     fi
 }
 
-bkm_push() (
+bkm_push() {
     git_or_die
 
     cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
@@ -389,7 +391,7 @@ bkm_push() (
     git add .
     git commit -m "Update @ $(date '+%Y/%m/%d %H:%M')"
     git push
-)
+}
 
 bkm_pull() {
     git_or_die
@@ -399,20 +401,18 @@ bkm_pull() {
     repo_or_die
     remote_or_die
 
+    stashed=0
+
     is_dirty && {
         stashed=1
-
-        git stash
+        git stash > /dev/null
     }
 
     git pull
 
-    [ -n "$stashed" ] && {
-        git stash apply
-
-        bkm_push
-
-        unset stashed
+    [ $stashed -eq 1 ] && {
+        git stash apply > /dev/null
+        git stash drop > /dev/null
     }
 }
 
