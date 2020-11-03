@@ -14,13 +14,12 @@ die() {
 }
 
 nest() {
-    log "  ├─ $1" \
-        "  │  $2"
+    log "│  ├─ $1" \
+        "│  │  $2"
 }
 
 msg() {
-    log "$1" "$2"
-    nest "$3" "$4"
+    log "$1" "$2" "├─ $3" "│  $4"
 }
 
 truncate() {
@@ -108,7 +107,7 @@ dirty_or_die() {
 list_tree() {
     file_or_die "$1"
 
-    log "${1##*/}"
+    log "├─ ${1##*/}"
 
     while IFS=' ' read -r n u; do
         nest "$n" "$u"
@@ -255,7 +254,7 @@ write_to_file() {
     }
 }
 
-add_bookmark() {
+bkm_add() {
     value_or_die "$category" "category"
     value_or_die "$name" "name"
     url_or_die "$url"
@@ -268,7 +267,7 @@ add_bookmark() {
         "$category" "$name" "$url"
 }
 
-edit_bookmark() {
+bkm_edit() {
     value_or_die "$category" "category"
     value_or_die "$name" "name"
     file_or_die "$current"
@@ -306,7 +305,7 @@ edit_bookmark() {
     msg "Bookmark saved:" "$category" "$name" "$url"
 }
 
-open_bookmark() {
+bkm_open() {
     [ -z "$BROWSER" ] && die "BROWSER is not set."
 
     value_or_die "$category" "category"
@@ -329,7 +328,7 @@ open_bookmark() {
     die "Bookmark $name not found in category."
 }
 
-list_bookmark() {
+bkm_list() {
     if [ -n "$category" ]; then
         list_tree "$bookmark_dir/$category"
     else
@@ -347,7 +346,16 @@ list_bookmark() {
     fi
 }
 
-delete_bookmark() {
+bkm_categories() {
+    set +f
+    set -f -- "$bookmark_dir/"*
+
+    for c in "$@"; do
+        log "├─ ${c##*/}"
+    done
+}
+
+bkm_delete() {
     value_or_die "$category" "category"
     file_or_die "$current"
 
@@ -369,7 +377,7 @@ delete_bookmark() {
     fi
 }
 
-push_bookmark() (
+bkm_push() (
     git_or_die
 
     cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
@@ -383,7 +391,7 @@ push_bookmark() (
     git push
 )
 
-pull_bookmark() {
+bkm_pull() {
     git_or_die
 
     cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
@@ -402,7 +410,7 @@ pull_bookmark() {
     [ -n "$stashed" ] && {
         git stash apply
 
-        push_bookmark
+        bkm_push
 
         unset stashed
     }
@@ -427,7 +435,7 @@ help() {
         "list <category>" \
         "    List bookmarks in category" \
         "    EXAMPLE: list archlinux" "" \
-        "list categories" \
+        "categories" \
         "    List categories only" "" \
         "delete <category>.<name>" \
         "    Delete bookmark from category" \
@@ -466,13 +474,14 @@ main() {
     existing_url=""
 
     case $action in
-        add) add_bookmark ;;
-        edit) edit_bookmark ;;
-        open) open_bookmark ;;
-        list) list_bookmark ;;
-        delete) delete_bookmark ;;
-        push) push_bookmark ;;
-        pull) pull_bookmark ;;
+        add) bkm_add ;;
+        edit) bkm_edit ;;
+        open) bkm_open ;;
+        list) bkm_list ;;
+        categories) bkm_categories ;;
+        delete) bkm_delete ;;
+        push) bkm_push ;;
+        pull) bkm_pull ;;
         *) help ;;
     esac
 }
