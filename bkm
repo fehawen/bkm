@@ -170,6 +170,14 @@ resolve_duplicates() {
         [ -n "$new_name" ] && name="$new_name"
 
         resolve_duplicates
+
+        #
+        # If we don't return, the checks for url
+        # duplicates will run twice since the function
+        # did not get to finish before it invoked itself
+        # again in the line above.
+        #
+        return
     }
 
     value_exists "url" "$index" && {
