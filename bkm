@@ -89,19 +89,19 @@ repo_or_die() {
 }
 
 remote_or_die() {
-    command git remote -v > /dev/null && {
+    command git remote -v > /dev/null || {
         die "\$BKM_DIR remote repository not set."
     }
 }
 
 is_dirty() {
-    git status --short > /dev/null && return 0
+    git status --short > /dev/null || return 0
 
     return 1
 }
 
 dirty_or_die() {
-    is_dirty || die "\$BKM_DIR git repository is clean."
+    is_dirty || die "\$BKM_DIR repository is clean."
 }
 
 list_tree() {
