@@ -36,4 +36,4 @@ Invoke without arguments for available commands.
     $ bkm
 
 
-[0] installs to ~/bin by default, and `make install` should thus not run as root.
+[0] installs to ~/bin by default, and `make install` should not be run as root.
