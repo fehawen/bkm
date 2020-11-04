@@ -45,7 +45,7 @@ sanitize() {
 read_input() {
     old=$1
 
-    read -r "new"
+    read -r new
 
     if [ -n "$new" ] && [ "$new" != "$old" ]; then
         new=$(sanitize "$new")
@@ -53,9 +53,6 @@ read_input() {
     else
         printf '%s\n' "$old"
     fi
-
-    unset old
-    unset new
 }
 
 is_url() {
@@ -416,40 +413,25 @@ bkm_pull() {
     }
 }
 
-help() {
-    log "bkm is a simple CLI bookmark manager that uses plain text files to" \
-        "store bookmarks under categories in a user-specified directory." \
-        "The directory is defined by BKM_DIR in \$SHELL's startup file." "" \
-        "Usage: bkm [options]..." "" \
-        "add <category>.<name> <url>" \
-        "    Add bookmark" \
-        "    EXAMPLE: add archlinux.news https://www.archlinux.org/news/" "" \
-        "edit <category>.<name>" \
-        "    Edit bookmark" \
-        "    EXAMPLE: edit archlinux.news" "" \
-        "open <category>.<name>" \
-        "    Open bookmark in \$BROWSER" \
-        "    EXAMPLE: open archlinux.news" "" \
-        "list" \
-        "    List all bookmarks" "" \
-        "list <category>" \
-        "    List bookmarks in category" \
-        "    EXAMPLE: list archlinux" "" \
-        "categories" \
-        "    List categories only" "" \
-        "delete <category>.<name>" \
-        "    Delete bookmark from category" \
-        "    EXAMPLE: delete archlinux.news" "" \
-        "delete <category>" \
-        "    Delete entire category" \
-        "    EXAMPLE: delete archlinux" "" \
-        "push" \
-        "    Invokes git add, commit and push" \
-        "    NOTE: Presumes that \$BKM_DIR is a git repository." "" \
-        "pull" \
-        "    Invokes git pull" \
-        "    NOTE: Presumes that \$BKM_DIR is a git repository." ""
-    exit
+usage() { printf %s "\
+bkm - bookmark manager.
+
+add [category].[name] [url]  - Add bookmark.
+edit [category].[name]       - Edit bookmark.
+open [category].[name]       - Open bookmark in \$BROWSER.
+list                         - List all bookmarks.
+list [category]              - List bookmarks in category.
+categories                   - List categories.
+delete [category].[name]     - Delete bookmark from category.
+delete [category]            - Delete entire category.
+push                         - Stage, commit and push bookmarks (git) *
+pull                         - Pull bookmarks (git) *
+
+* Presumes that \$BKM_DIR is a git repository.
+
+Define bookmarks directory:    export BKM_DIR=~/.bookmarks
+"
+exit
 }
 
 main() {
@@ -458,20 +440,20 @@ main() {
     bookmark_dir="${BKM_DIR%%/}/bkm"
     mkdir -p "$bookmark_dir"
 
-    dotted="$2"
-    printf '%s\n' "$dotted" | grep -q -e "\." || {
-        dotted="$dotted."
+    dotnot=$2
+    printf '%s\n' "$dotnot" | grep -q -e "\." || {
+        dotnot="$dotnot."
     }
 
-    action="$1"
-    category=$(sanitize "${dotted%%.*}")
-    name=$(sanitize "${dotted##*.}")
+    action=$1
+    category=$(sanitize "${dotnot%%.*}")
+    name=$(sanitize "${dotnot##*.}")
     url=$(sanitize "$3")
     current="$bookmark_dir/$category"
-    index=""
 
-    existing_name=""
-    existing_url=""
+    index=
+    existing_name=
+    existing_url=
 
     case $action in
         add) bkm_add ;;
@@ -482,7 +464,7 @@ main() {
         delete) bkm_delete ;;
         push) bkm_push ;;
         pull) bkm_pull ;;
-        *) help ;;
+        *) usage ;;
     esac
 }
 
