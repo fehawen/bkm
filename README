@@ -1,40 +1,39 @@
 bkm - bookmark manager
 ----------------------
 
-A simple CLI bookmark manager that uses plain text files to store bookmarks
-under categories in a user-specified directory.
+A simple CLI bookmark manager that stores bookmarks under categories in plain
+text files.
 
-The directory is defined by BKM_DIR in $SHELL's startup file.
+It's ridiculously naive in its implementation. Very, very simple - almost to a
+point where it might actually be easier for you to just keep a text file with
+bookmarks and edit said file manually. But then again, a CLI always sparks a bit
+bit of geeky joy.
 
+Written in POSIX `sh`, with the exception of `sed -i`.
 
-install
--------
+And it might not work on some *BSDs due to `sed` implementation differences.
 
-Clone the repo
-
-    $ git clone https://github.com/fehawen/bkm.git
-
-Change working directory to bkm
-
-    $ cd bkm
-
-Install bkm [*]
-
-    $ make install
-
-Add ~/.bin to PATH in $SHELL's startup file.
-
-    export PATH=~/bin:$PATH
-
-Define where bookmarks are kept by adding the following in $SHELL's startup file.
-
-    export BKM_DIR=~/path/to/somewhere
-
-
-[*] installs to ~/bin by default, and `make install` should thus not run as root.
+So, let's just say it's POSIX-ish.
 
 
 usage
 -----
 
-See `bkm --help` for details.
+Install bkm [0]
+
+    $ make install
+
+Add ~/bin to PATH in $SHELL's startup file.
+
+    export PATH=~/bin:$PATH
+
+Define where bookmarks are kept with BKM_DIR in $SHELL's startup file.
+
+    export BKM_DIR=~/.bookmarks
+
+Invoke without arguments for available commands.
+
+    $ bkm
+
+
+[0] installs to ~/bin by default, and `make install` should thus not run as root.
