@@ -13,7 +13,7 @@ Written in POSIX `sh`, with the exception of `sed -i`.
 
 And it might not work on some *BSDs due to `sed` implementation differences.
 
-So, let's just say it's POSIX-ish.
+So, let's just say it's POSIX-ish, and works on my machine.
 
 
 usage
