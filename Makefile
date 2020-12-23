@@ -4,9 +4,9 @@ all:
 	@echo Run \'make install\' to install bkm.
 
 install:
-	@mkdir -pv $(DESTDIR)$(PREFIX)/bin
+	@mkdir -p $(DESTDIR)$(PREFIX)/bin
 	@cp -pv bkm $(DESTDIR)$(PREFIX)/bin/bkm
 	@echo Add \'~/bin\' to PATH.
 
 uninstall:
-	@rm -fv $(DESTDIR)$(PREFIX)/bin/bkm
+	@rm -f $(DESTDIR)$(PREFIX)/bin/bkm
