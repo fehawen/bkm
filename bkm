@@ -14,11 +14,11 @@ die() {
 }
 
 nest() {
-    log "│  ├─ $1 ─ $2"
+    log "│  ├─ $1"
 }
 
 msg() {
-    log "$1" "$2" "├─ $3 ─ $4"
+    log "$1" "├─ $2" "│  ├─ $3 ─ $4"
 }
 
 truncate() {
@@ -70,6 +70,11 @@ value_or_die() {
     [ -n "$1" ] || die "Argument $2 is required."
 }
 
+name_and_category_or_die() {
+    value_or_die "$category" "category"
+    value_or_die "$name" "name"
+}
+
 file_or_die() {
     [ -f "$1" ] || die "Category ${1##*/} not found."
 }
@@ -107,8 +112,8 @@ list_tree() {
 
     log "├─ ${1##*/}"
 
-    while IFS=' ' read -r n u; do
-        nest "$n" "$u"
+    while IFS=' ' read -r n _; do
+        nest "$n"
     done < "$1"
 }
 
@@ -253,8 +258,7 @@ write_to_file() {
 }
 
 bkm_add() {
-    value_or_die "$category" "category"
-    value_or_die "$name" "name"
+    name_and_category_or_die
     url_or_die "$url"
 
     resolve_duplicates
@@ -266,8 +270,7 @@ bkm_add() {
 }
 
 bkm_edit() {
-    value_or_die "$category" "category"
-    value_or_die "$name" "name"
+    name_and_category_or_die
     file_or_die "$current"
 
     while IFS=' ' read -r n u; do
@@ -306,8 +309,7 @@ bkm_edit() {
 bkm_open() {
     [ -z "$BROWSER" ] && die "BROWSER is not set."
 
-    value_or_die "$category" "category"
-    value_or_die "$name" "name"
+    name_and_category_or_die
     file_or_die "$current"
 
     while IFS=' ' read -r n u; do
@@ -342,6 +344,27 @@ bkm_list() {
             list_tree "$c"
         done
     fi
+}
+
+bkm_show() {
+    name_and_category_or_die
+    file_or_die "$current"
+
+    while IFS=' ' read -r n u; do
+        [ "$name" = "$n" ] && {
+            if [ -n "$u" ] && is_url "$u"; then
+                msg "Bookmark details:" \
+                    "$category" "$name" "$u"
+                exit
+            else
+                die "Bookmark $name has an invalid or missing URL."
+            fi
+        }
+
+        continue
+    done < "$current"
+
+    die "Bookmark $name not found in category."
 }
 
 bkm_categories() {
@@ -418,6 +441,7 @@ bkm - bookmark manager.
 add [category].[name] [url]  - Add bookmark.
 edit [category].[name]       - Edit bookmark.
 open [category].[name]       - Open bookmark in \$BROWSER.
+show [category].[name]       - Show bookmark details.
 list                         - List all bookmarks.
 list [category]              - List bookmarks in category.
 categories                   - List categories.
@@ -459,6 +483,7 @@ main() {
         edit) bkm_edit ;;
         open) bkm_open ;;
         list) bkm_list ;;
+        show) bkm_show ;;
         categories) bkm_categories ;;
         delete) bkm_delete ;;
         push) bkm_push ;;
