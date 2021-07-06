@@ -435,7 +435,8 @@ bkm_pull() {
     }
 }
 
-usage() { printf %s "\
+usage() {
+printf %s "\
 bkm - bookmark manager.
 
 add [category].[name] [url]  - Add bookmark.
