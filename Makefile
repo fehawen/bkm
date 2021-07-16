@@ -5,7 +5,8 @@ all:
 
 install:
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
-	@cp -pv bkm $(DESTDIR)$(PREFIX)/bin/bkm
+	@cp -p bkm $(DESTDIR)$(PREFIX)/bin/bkm
+	@chmod 755 $(DESTDIR)$(PREFIX)/bin/bkm
 	@echo Add \'~/bin\' to PATH.
 
 uninstall:
