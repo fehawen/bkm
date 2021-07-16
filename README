@@ -1,5 +1,5 @@
 bkm - bookmark manager
-----------------------
+--------------------------------------------------------------------------------
 
 A simple CLI bookmark manager that stores bookmarks under categories in plain
 text files.
@@ -17,7 +17,7 @@ So, let's just say it's POSIX-ish, and works on my machine.
 
 
 install
--------
+--------------------------------------------------------------------------------
 
 Install bkm [0]
 
@@ -33,7 +33,7 @@ Define where bookmarks are kept with BKM_DIR in $SHELL's startup file.
 
 
 usage
------
+--------------------------------------------------------------------------------
 
 add [category].[name] [url]   Add bookmark.
 edit [category].[name]        Edit bookmark.
