@@ -19,13 +19,9 @@ So, let's just say it's POSIX-ish, and works on my machine.
 install
 --------------------------------------------------------------------------------
 
-Install bkm [0]
+Install bkm
 
     $ make install
-
-Add ~/bin to PATH in $SHELL's startup file.
-
-    export PATH=~/bin:$PATH
 
 Define where bookmarks are kept with BKM_DIR in $SHELL's startup file.
 
@@ -43,9 +39,8 @@ list [category]               List bookmarks in category.
 categories                    List categories.
 delete [category].[name]      Delete bookmark from category.
 delete [category]             Delete entire category.
-push                          Stage, commit and push bookmarks (git) [1]
-pull                          Pull bookmarks (git) [1]
+push                          Stage, commit and push bookmarks (git) [0]
+pull                          Pull bookmarks (git) [0]
 
 
-[0] installs to ~/bin by default, and `make install` should not be run as root.
-[1] Presumes that $BKM_DIR is a git repository.
+[0] Presumes that $BKM_DIR is a git repository.
