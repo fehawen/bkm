@@ -30,7 +30,7 @@ truncate() {
 }
 
 trim() {
-    printf '%s\n' "$1" | sed -e "s/ //g"
+    printf '%s\n' "$1" | sed "s/ //g"
 }
 
 sanitize() {
