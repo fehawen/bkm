@@ -1,12 +1,12 @@
 PREFIX ?= /usr
+BINDIR ?= $(PREFIX)/bin
 
 all:
 	@echo Run \'make install\' to install bkm.
 
 install:
-	@mkdir -p $(DESTDIR)$(PREFIX)/bin
-	@cp -p bkm $(DESTDIR)$(PREFIX)/bin/bkm
-	@chmod 755 $(DESTDIR)$(PREFIX)/bin/bkm
+	install -d $(DESTDIR)$(BINDIR)
+	install -m 755 bkm $(DESTDIR)$(BINDIR)
 
 uninstall:
-	@rm -f $(DESTDIR)$(PREFIX)/bin/bkm
+	rm -f $(DESTDIR)$(BINDIR)/bkm
