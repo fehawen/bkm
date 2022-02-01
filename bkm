@@ -14,11 +14,11 @@ die() {
 }
 
 nest() {
-    log "│  ├─ $1"
+    log "  • $1"
 }
 
 msg() {
-    log "$1" "├─ $2" "│  ├─ $3 ─ $4"
+    log "$1" "$2" "  • $3 ─ $4"
 }
 
 truncate() {
@@ -67,7 +67,7 @@ url_or_die() {
 }
 
 value_or_die() {
-    [ -n "$1" ] || die "Argument $2 is required."
+    [ -n "$1" ] || die "Argument '$2' is required."
 }
 
 name_and_category_or_die() {
@@ -81,6 +81,10 @@ file_or_die() {
 
 git_or_die() {
     command -v git > /dev/null || die "This command requires git to be installed."
+}
+
+cd_or_die() {
+    cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
 }
 
 repo_or_die() {
@@ -110,7 +114,7 @@ dirty_or_die() {
 list_tree() {
     file_or_die "$1"
 
-    log "├─ ${1##*/}"
+    log "${1##*/}"
 
     while IFS=' ' read -r n _; do
         nest "$n"
@@ -166,7 +170,7 @@ resolve_duplicates() {
         msg "Duplicate name found in category:" \
             "$category" "$existing_name" "$existing_url"
 
-        printf '\nEnter another name (or type Ctrl+C to abort): '
+        printf 'Enter another name (or type Ctrl+C to abort): '
         new_name=$(read_input "$existing_name")
 
         [ -n "$new_name" ] && name="$new_name"
@@ -186,7 +190,7 @@ resolve_duplicates() {
         msg "Duplicate URL found in category:" \
             "$category" "$existing_name" "$existing_url"
 
-        printf '\nContinue anyway? [y/n]: '
+        printf 'Continue anyway? [y/n]: '
         answer=$(read_input "")
 
         case $answer in
@@ -234,7 +238,7 @@ delete_entry() {
     msg "Found bookmark:" \
         "$category" "$name" "$url"
 
-    printf '\nDelete it? [y/n]: '
+    printf 'Delete it? [y/n]: '
     answer=$(read_input "")
 
     case $answer in
@@ -288,13 +292,12 @@ bkm_edit() {
 
     [ -z "$index" ] && die "Bookmark $name not found in category $category."
 
-    msg "Editing bookmark:" \
-        "$category" "$name" "$url"
+    msg "Editing bookmark:" "$category" "$name" "$url"
 
-    printf '\nEdit name (or press Enter to leave unchanged): '
+    printf 'Edit name (or press Enter to leave unchanged): '
     name=$(read_input "$name")
 
-    printf '\nEdit URL (or press Enter to leave unchanged): '
+    printf 'Edit URL (or press Enter to leave unchanged): '
     url=$(read_input "$url")
 
     resolve_duplicates
@@ -372,7 +375,7 @@ bkm_categories() {
     set -f -- "$bookmark_dir/"*
 
     for c in "$@"; do
-        log "├─ ${c##*/}"
+        log "${c##*/}"
     done
 }
 
@@ -400,9 +403,7 @@ bkm_delete() {
 
 bkm_push() {
     git_or_die
-
-    cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
-
+    cd_or_die
     repo_or_die
     remote_or_die
     dirty_or_die
@@ -414,9 +415,7 @@ bkm_push() {
 
 bkm_pull() {
     git_or_die
-
-    cd "$BKM_DIR" || die "Failed to change directory to \$BKM_DIR."
-
+    cd_or_die
     repo_or_die
     remote_or_die
 
@@ -439,21 +438,21 @@ usage() {
 printf %s "\
 bkm - bookmark manager.
 
-add [category].[name] [url]  - Add bookmark.
-edit [category].[name]       - Edit bookmark.
-open [category].[name]       - Open bookmark in \$BROWSER.
-show [category].[name]       - Show bookmark details.
-list                         - List all bookmarks.
-list [category]              - List bookmarks in category.
-categories                   - List categories.
-delete [category].[name]     - Delete bookmark from category.
-delete [category]            - Delete entire category.
-push                         - Stage, commit and push bookmarks (git) *
-pull                         - Pull bookmarks (git) *
+a|add [category].[name] [url]  - Add bookmark.
+e|edit [category].[name]       - Edit bookmark.
+o|open [category].[name]       - Open bookmark in \$BROWSER.
+s|show [category].[name]       - Show bookmark details.
+l|list                         - List all bookmarks.
+l|list [category]              - List bookmarks in category.
+c|categories                   - List categories.
+d|delete [category].[name]     - Delete bookmark from category.
+d|delete [category]            - Delete entire category.
+push                           - Stage, commit and push bookmarks (git) *
+pull                           - Pull bookmarks (git) *
 
 * Presumes that \$BKM_DIR is a git repository.
 
-Define bookmarks directory:    export BKM_DIR=~/.bookmarks
+Define bookmarks directory:      export BKM_DIR=~/.bookmarks
 "
 exit
 }
@@ -480,13 +479,13 @@ main() {
     existing_url=
 
     case $action in
-        add) bkm_add ;;
-        edit) bkm_edit ;;
-        open) bkm_open ;;
-        list) bkm_list ;;
-        show) bkm_show ;;
-        categories) bkm_categories ;;
-        delete) bkm_delete ;;
+        a|add) bkm_add ;;
+        e|edit) bkm_edit ;;
+        o|open) bkm_open ;;
+        l|list) bkm_list ;;
+        s|show) bkm_show ;;
+        c|categories) bkm_categories ;;
+        d|delete) bkm_delete ;;
         push) bkm_push ;;
         pull) bkm_pull ;;
         *) usage ;;
