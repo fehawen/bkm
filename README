@@ -13,7 +13,7 @@ Written in POSIX `sh`, with the exception of `sed -i`.
 
 And it might not work on some *BSDs due to `sed` implementation differences.
 
-So, let's just say it's POSIX-ish, and works on my machine.
+So, let's just say it's POSIX-ish, and works on some machines.
 
 
 Installation
@@ -31,16 +31,11 @@ Define where bookmarks are kept with BKM_DIR in $SHELL's startup file.
 Usage
 -----
 
-add [category].[name] [url]   Add bookmark.
-edit [category].[name]        Edit bookmark.
-open [category].[name]        Open bookmark in $BROWSER.
-list                          List all bookmarks.
-list [category]               List bookmarks in category.
-categories                    List categories.
-delete [category].[name]      Delete bookmark from category.
-delete [category]             Delete entire category.
-push                          Stage, commit and push bookmarks (git) [0]
-pull                          Pull bookmarks (git) [0]
-
-
-[0] Presumes that $BKM_DIR is a git repository.
+a|add [category].[name] [url]   Add bookmark.
+e|edit [category].[name]        Edit bookmark.
+o|open [category].[name]        Open bookmark in $BROWSER.
+l|list                          List all bookmarks.
+l|list [category]               List bookmarks in category.
+c|categories                    List categories.
+d|delete [category].[name]      Delete bookmark from category.
+d|delete [category]             Delete entire category.
