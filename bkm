@@ -286,7 +286,7 @@ bkm_open() {
     while IFS=' ' read -r n u; do
         [ "$name" = "$n" ] && {
             if [ -n "$u" ] && is_url "$u"; then
-                command "$BROWSER" "$u" 1> /dev/null 2> /dev/null &
+                command "$BROWSER" "$u" > /dev/null 2>&1 &
                 exit
             else
                 die "Bookmark $name has an invalid or missing URL."
